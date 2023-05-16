@@ -467,3 +467,23 @@ class Classify(nn.Module):
     def forward(self, x):
         z = torch.cat([self.aap(y) for y in (x if isinstance(x, list) else [x])], 1)  # cat if list
         return self.flat(self.conv(z))  # flatten to x(b,c2)
+
+# SE 注意力机制
+class SE(nn.Module):
+    def __init__(self, c1, c2, ratio=16):
+        super(SE, self).__init__()
+        #c*1*1
+        self.avgpool = nn.AdaptiveAvgPool2d(1)
+        self.l1 = nn.Linear(c1, c1 // ratio, bias=False)
+        self.relu = nn.ReLU(inplace=True)
+        self.l2 = nn.Linear(c1 // ratio, c1, bias=False)
+        self.sig = nn.Sigmoid()
+    def forward(self, x):
+        b, c, _, _ = x.size()
+        y = self.avgpool(x).view(b, c)
+        y = self.l1(y)
+        y = self.relu(y)
+        y = self.l2(y)
+        y = self.sig(y)
+        y = y.view(b, c, 1, 1)
+        return x * y.expand_as(x)
